@@ -1,6 +1,9 @@
-# 
+#
 # standard
-# 
+#
+dist/
+target/
+result
 **/*.do_not_sync
 **/*.do_not_sync.*
 **/*.ignore
