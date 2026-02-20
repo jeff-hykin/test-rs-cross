@@ -1,11 +1,11 @@
 {
-  description = "Rust hello world with musl cross-compilation";
+  description = "dimos — project scaffolding CLI, cross-compiled via musl";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url      = "github:NixOS/nixpkgs/nixpkgs-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-utils.url  = "github:numtide/flake-utils";
   };
 
   outputs = { self, nixpkgs, rust-overlay, flake-utils }:
@@ -14,108 +14,99 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
 
-        # Rust toolchain with all cross-compilation targets
+        # Pinned stable toolchain with musl cross-targets bundled.
+        # Used both for the dev-shell and as the compiler in all nix builds.
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
           targets = [
             "x86_64-unknown-linux-musl"
             "aarch64-unknown-linux-musl"
-            # macOS ARM is the native host on aarch64-apple-darwin
           ];
         };
 
-        # Cross-compilation packages for Linux targets
-        pkgsCrossLinuxX86 = import nixpkgs {
-          inherit system overlays;
-          crossSystem = {
-            config = "x86_64-unknown-linux-musl";
-          };
+        # rustPlatform backed by our pinned toolchain.
+        # buildRustPackage from this platform vendors crates via cargoLock,
+        # so cargo never needs network access inside the sandbox.
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = rustToolchain;
+          rustc = rustToolchain;
         };
 
-        pkgsCrossLinuxArm64 = import nixpkgs {
-          inherit system overlays;
-          crossSystem = {
-            config = "aarch64-unknown-linux-musl";
-          };
+        # Cross pkgs sets — used only to pull in the musl GCC cross-linkers.
+        pkgsCrossX86 = import nixpkgs {
+          inherit system;
+          crossSystem.config = "x86_64-unknown-linux-musl";
+        };
+        pkgsCrossArm64 = import nixpkgs {
+          inherit system;
+          crossSystem.config = "aarch64-unknown-linux-musl";
         };
 
-        # Get cross-linkers from cross pkgs
-        linkerX86   = "${pkgsCrossLinuxX86.stdenv.cc}/bin/${pkgsCrossLinuxX86.stdenv.cc.targetPrefix}cc";
-        linkerArm64 = "${pkgsCrossLinuxArm64.stdenv.cc}/bin/${pkgsCrossLinuxArm64.stdenv.cc.targetPrefix}cc";
+        linkerX86   = "${pkgsCrossX86.stdenv.cc}/bin/${pkgsCrossX86.stdenv.cc.targetPrefix}cc";
+        linkerArm64 = "${pkgsCrossArm64.stdenv.cc}/bin/${pkgsCrossArm64.stdenv.cc.targetPrefix}cc";
 
-        # Helper: build for a given rust target using a specific linker
-        buildFor = { rustTarget, linker, extraEnv ? {} }:
-          pkgs.stdenv.mkDerivation ({
-            name = "test-rs-cross-${rustTarget}";
-            src = ./.;
+        # Shared source + lock info for every build.
+        commonArgs = {
+          pname   = "dimos";
+          version = "0.1.0";
+          src     = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+          # Skip the test suite (musl cross builds can't run the test binary).
+          doCheck = false;
+        };
 
-            nativeBuildInputs = [ rustToolchain pkgs.pkg-config ];
+        # ── native macOS ARM build ──────────────────────────────────────────
+        buildMacosArm = rustPlatform.buildRustPackage commonArgs;
 
-            CARGO_BUILD_TARGET = rustTarget;
-            "CARGO_TARGET_${builtins.replaceStrings ["-"] ["_"] (pkgs.lib.toUpper rustTarget)}_LINKER" = linker;
+        # ── generic cross build ─────────────────────────────────────────────
+        # Overrides the build/install phases so cargo targets the right triple
+        # and the binary is picked up from the target-specific output directory.
+        buildCross = rustTarget: linker:
+          rustPlatform.buildRustPackage (commonArgs // {
+            pname = "dimos-${rustTarget}";
 
             buildPhase = ''
-              export HOME=$TMPDIR
+              runHook preBuild
               cargo build --release --target ${rustTarget}
+              runHook postBuild
             '';
 
             installPhase = ''
+              runHook preInstall
               mkdir -p $out/bin
-              cp target/${rustTarget}/release/test-rs-cross $out/bin/test-rs-cross
+              install -m755 target/${rustTarget}/release/dimos $out/bin/dimos
+              runHook postInstall
             '';
-          } // extraEnv);
 
-        # macOS ARM native build (no cross-compilation needed)
-        buildMacosArm = pkgs.stdenv.mkDerivation {
-          name = "test-rs-cross-aarch64-apple-darwin";
-          src = ./.;
-          nativeBuildInputs = [ rustToolchain ];
-          buildPhase = ''
-            export HOME=$TMPDIR
-            cargo build --release
-          '';
-          installPhase = ''
-            mkdir -p $out/bin
-            cp target/release/test-rs-cross $out/bin/test-rs-cross
-          '';
-        };
+            # Tell cargo which linker to use for the foreign target.
+            "CARGO_TARGET_${
+              builtins.replaceStrings ["-"] ["_"]
+                (pkgs.lib.toUpper rustTarget)
+            }_LINKER" = linker;
+          });
 
       in {
         packages = {
-          # macOS ARM (native)
-          macos-arm = buildMacosArm;
-
-          # Linux x86_64 musl
-          linux-x86 = buildFor {
-            rustTarget = "x86_64-unknown-linux-musl";
-            linker = linkerX86;
-          };
-
-          # Linux aarch64 musl
-          linux-arm64 = buildFor {
-            rustTarget = "aarch64-unknown-linux-musl";
-            linker = linkerArm64;
-          };
-
-          default = buildMacosArm;
+          macos-arm   = buildMacosArm;
+          linux-x86   = buildCross "x86_64-unknown-linux-musl"  linkerX86;
+          linux-arm64 = buildCross "aarch64-unknown-linux-musl" linkerArm64;
+          default     = buildMacosArm;
         };
 
-        # Dev shell with all tools available for manual cargo cross commands
+        # Dev shell: all cross-linker env-vars pre-set so plain `cargo build
+        # --target <triple>` works without any extra config.
         devShells.default = pkgs.mkShell {
           buildInputs = [ rustToolchain pkgs.pkg-config ];
 
-          # Expose cross-linkers as environment variables
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER = linkerX86;
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER  = linkerX86;
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER = linkerArm64;
 
           shellHook = ''
-            echo "Rust cross-compilation dev shell"
+            echo "dimos dev shell (Rust $(rustc --version | cut -d' ' -f2))"
             echo ""
-            echo "Available build commands:"
             echo "  nix build .#macos-arm    -- macOS ARM (native)"
             echo "  nix build .#linux-x86   -- Linux x86_64 musl"
             echo "  nix build .#linux-arm64 -- Linux aarch64 musl"
             echo ""
-            echo "Or use cargo directly inside this shell:"
             echo "  cargo build --release"
             echo "  cargo build --release --target x86_64-unknown-linux-musl"
             echo "  cargo build --release --target aarch64-unknown-linux-musl"

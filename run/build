@@ -9,13 +9,13 @@ build() {
     local name="$2"
     echo "Building $name..."
     out=$(nix build ".#$target" --no-link --print-out-paths 2>/dev/null | tail -1)
-    cp "$out/bin/test-rs-cross" "$DIST/$name"
+    cp "$out/bin/dimos" "$DIST/$name"
     echo "  -> dist/$name"
 }
 
-build macos-arm    test-rs-cross-aarch64-apple-darwin
-build linux-x86    test-rs-cross-x86_64-linux-musl
-build linux-arm64  test-rs-cross-aarch64-linux-musl
+build macos-arm    dimos-aarch64-apple-darwin
+build linux-x86    dimos-x86_64-linux-musl
+build linux-arm64  dimos-aarch64-linux-musl
 
 echo ""
 echo "Done. Binaries in dist/:"

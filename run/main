@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DIST="$(cd "$(dirname "$0")/../dist" && pwd)"
+
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+
+case "${OS}-${ARCH}" in
+  Darwin-arm64)   BIN="$DIST/dimos-aarch64-apple-darwin" ;;
+  Darwin-x86_64)  BIN="$DIST/dimos-aarch64-apple-darwin" ;; # Rosetta
+  Linux-x86_64)   BIN="$DIST/dimos-x86_64-linux-musl"   ;;
+  Linux-aarch64)  BIN="$DIST/dimos-aarch64-linux-musl"   ;;
+  *)
+    echo "Unsupported platform: ${OS}-${ARCH}" >&2
+    exit 1
+    ;;
+esac
+
+if [[ ! -f "$BIN" ]]; then
+  echo "Binary not found: $BIN" >&2
+  echo "Run ./run/build first." >&2
+  exit 1
+fi
+
+exec "$BIN" "$@"
