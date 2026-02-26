@@ -1,32 +1,30 @@
 use anyhow::Result;
-use which::which;
 
 use crate::config::Config;
-use super::{apt_install, brew_install, nix_install, Autofix, Check};
-
-fn detect(_cfg: &Config) -> bool {
-    which("git").is_ok()
-}
+use super::{apt_install, brew_install, is_apt_installed, nix_install, pkg_config_exists, Autofix, Check};
 
 fn fix_instructions(_cfg: &Config) -> String {
-    "Install git via your package manager (apt/brew/nix).".to_string()
+    "Install portaudio dev headers via your package manager.".to_string()
 }
 
 pub mod apt {
     use super::*;
     pub fn check() -> Check {
         Check {
-            label: "git",
+            label: "portaudio19-dev",
             detect,
             fix_instructions: Some(fix_instructions),
             autofix: Some(Autofix {
-                prompt: "Install git via apt?",
+                prompt: "Install portaudio19-dev via apt?",
                 run: autofix,
             }),
         }
     }
+    fn detect(_cfg: &Config) -> bool {
+        is_apt_installed("portaudio19-dev")
+    }
     fn autofix(_cfg: &Config) -> Result<()> {
-        apt_install(&["git"])
+        apt_install(&["portaudio19-dev"])
     }
 }
 
@@ -34,17 +32,20 @@ pub mod brew {
     use super::*;
     pub fn check() -> Check {
         Check {
-            label: "git",
+            label: "portaudio",
             detect,
             fix_instructions: Some(fix_instructions),
             autofix: Some(Autofix {
-                prompt: "Install git via Homebrew?",
+                prompt: "Install portaudio via Homebrew?",
                 run: autofix,
             }),
         }
     }
+    fn detect(_cfg: &Config) -> bool {
+        pkg_config_exists("portaudio-2.0")
+    }
     fn autofix(_cfg: &Config) -> Result<()> {
-        brew_install(&["git"])
+        brew_install(&["portaudio"])
     }
 }
 
@@ -52,16 +53,19 @@ pub mod nix {
     use super::*;
     pub fn check() -> Check {
         Check {
-            label: "git",
+            label: "portaudio",
             detect,
             fix_instructions: Some(fix_instructions),
             autofix: Some(Autofix {
-                prompt: "Install git via `nix profile install nixpkgs#git`?",
+                prompt: "Install portaudio via nix?",
                 run: autofix,
             }),
         }
     }
+    fn detect(_cfg: &Config) -> bool {
+        pkg_config_exists("portaudio-2.0")
+    }
     fn autofix(_cfg: &Config) -> Result<()> {
-        nix_install("nixpkgs#git")
+        nix_install("nixpkgs#portaudio")
     }
 }

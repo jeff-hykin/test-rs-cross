@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::{fs, path::PathBuf};
 
+use crate::config::Config;
 use super::{Autofix, Check};
 
 pub fn check() -> Check {
@@ -15,7 +16,7 @@ pub fn check() -> Check {
     }
 }
 
-fn detect() -> bool {
+fn detect(_cfg: &Config) -> bool {
     let candidates: Vec<PathBuf> = [
         dirs::home_dir().map(|h| h.join(".config/nix/nix.conf")),
         Some(PathBuf::from("/etc/nix/nix.conf")),
@@ -37,11 +38,11 @@ fn detect() -> bool {
     false
 }
 
-fn fix_instructions() -> String {
+fn fix_instructions(_cfg: &Config) -> String {
     "Add `experimental-features = nix-command flakes` to ~/.config/nix/nix.conf".to_string()
 }
 
-fn autofix() -> Result<()> {
+fn autofix(_cfg: &Config) -> Result<()> {
     let conf_dir = dirs::home_dir()
         .expect("no home dir")
         .join(".config/nix");

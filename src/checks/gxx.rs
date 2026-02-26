@@ -5,28 +5,28 @@ use crate::config::Config;
 use super::{apt_install, brew_install, nix_install, Autofix, Check};
 
 fn detect(_cfg: &Config) -> bool {
-    which("git").is_ok()
+    which("g++").is_ok() || which("c++").is_ok()
 }
 
 fn fix_instructions(_cfg: &Config) -> String {
-    "Install git via your package manager (apt/brew/nix).".to_string()
+    "Install g++ (C++ compiler) via your package manager.".to_string()
 }
 
 pub mod apt {
     use super::*;
     pub fn check() -> Check {
         Check {
-            label: "git",
+            label: "g++",
             detect,
             fix_instructions: Some(fix_instructions),
             autofix: Some(Autofix {
-                prompt: "Install git via apt?",
+                prompt: "Install g++ via apt?",
                 run: autofix,
             }),
         }
     }
     fn autofix(_cfg: &Config) -> Result<()> {
-        apt_install(&["git"])
+        apt_install(&["g++"])
     }
 }
 
@@ -34,17 +34,17 @@ pub mod brew {
     use super::*;
     pub fn check() -> Check {
         Check {
-            label: "git",
+            label: "g++",
             detect,
             fix_instructions: Some(fix_instructions),
             autofix: Some(Autofix {
-                prompt: "Install git via Homebrew?",
+                prompt: "Install gcc (includes g++) via Homebrew?",
                 run: autofix,
             }),
         }
     }
     fn autofix(_cfg: &Config) -> Result<()> {
-        brew_install(&["git"])
+        brew_install(&["gcc"])
     }
 }
 
@@ -52,16 +52,16 @@ pub mod nix {
     use super::*;
     pub fn check() -> Check {
         Check {
-            label: "git",
+            label: "g++",
             detect,
             fix_instructions: Some(fix_instructions),
             autofix: Some(Autofix {
-                prompt: "Install git via `nix profile install nixpkgs#git`?",
+                prompt: "Install gcc via nix?",
                 run: autofix,
             }),
         }
     }
     fn autofix(_cfg: &Config) -> Result<()> {
-        nix_install("nixpkgs#git")
+        nix_install("nixpkgs#gcc")
     }
 }

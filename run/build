@@ -2,7 +2,9 @@
 set -euo pipefail
 
 DIST="$(dirname "$0")/../dist"
-mkdir -p "$DIST"
+mkdir -p "$DIST" 
+# nix build can only see git-commited files
+git add -A
 
 build() {
     local target="$1"

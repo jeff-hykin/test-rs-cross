@@ -1,38 +1,67 @@
 use anyhow::Result;
-use std::process::Command;
 use which::which;
 
-use super::{Autofix, Check};
+use crate::config::Config;
+use super::{apt_install, brew_install, nix_install, Autofix, Check};
 
-pub fn check() -> Check {
-    Check {
-        label: "git-lfs",
-        detect,
-        fix_instructions: Some(fix_instructions),
-        autofix: Some(Autofix {
-            prompt: "Install git-lfs via `nix profile install nixpkgs#git-lfs`?",
-            run: autofix,
-        }),
-    }
-}
-
-fn detect() -> bool {
+fn detect(_cfg: &Config) -> bool {
     which("git-lfs").is_ok()
 }
 
-fn fix_instructions() -> String {
-    "Run: nix profile install nixpkgs#git-lfs".to_string()
+fn fix_instructions(_cfg: &Config) -> String {
+    "Install git-lfs via your package manager (apt/brew/nix).".to_string()
 }
 
-fn autofix() -> Result<()> {
-    let status = Command::new("nix")
-        .args(["profile", "install", "nixpkgs#git-lfs"])
-        .status()?;
-
-    if !status.success() {
-        anyhow::bail!(
-            "Failed to install git-lfs — install it manually then re-run `dimos init`."
-        );
+pub mod apt {
+    use super::*;
+    pub fn check() -> Check {
+        Check {
+            label: "git-lfs",
+            detect,
+            fix_instructions: Some(fix_instructions),
+            autofix: Some(Autofix {
+                prompt: "Install git-lfs via apt?",
+                run: autofix,
+            }),
+        }
     }
-    Ok(())
+    fn autofix(_cfg: &Config) -> Result<()> {
+        apt_install(&["git-lfs"])
+    }
+}
+
+pub mod brew {
+    use super::*;
+    pub fn check() -> Check {
+        Check {
+            label: "git-lfs",
+            detect,
+            fix_instructions: Some(fix_instructions),
+            autofix: Some(Autofix {
+                prompt: "Install git-lfs via Homebrew?",
+                run: autofix,
+            }),
+        }
+    }
+    fn autofix(_cfg: &Config) -> Result<()> {
+        brew_install(&["git-lfs"])
+    }
+}
+
+pub mod nix {
+    use super::*;
+    pub fn check() -> Check {
+        Check {
+            label: "git-lfs",
+            detect,
+            fix_instructions: Some(fix_instructions),
+            autofix: Some(Autofix {
+                prompt: "Install git-lfs via `nix profile install nixpkgs#git-lfs`?",
+                run: autofix,
+            }),
+        }
+    }
+    fn autofix(_cfg: &Config) -> Result<()> {
+        nix_install("nixpkgs#git-lfs")
+    }
 }

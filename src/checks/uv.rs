@@ -2,8 +2,10 @@ use anyhow::Result;
 use std::process::Command;
 use which::which;
 
+use crate::config::Config;
 use super::{Autofix, Check};
 
+/// The official uv installer works the same on all platforms.
 pub fn check() -> Check {
     Check {
         label: "uv",
@@ -16,15 +18,15 @@ pub fn check() -> Check {
     }
 }
 
-fn detect() -> bool {
+fn detect(_cfg: &Config) -> bool {
     which("uv").is_ok()
 }
 
-fn fix_instructions() -> String {
+fn fix_instructions(_cfg: &Config) -> String {
     "Install uv manually: https://docs.astral.sh/uv/getting-started/installation/".to_string()
 }
 
-fn autofix() -> Result<()> {
+fn autofix(_cfg: &Config) -> Result<()> {
     let status = Command::new("sh")
         .args(["-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"])
         .status()?;

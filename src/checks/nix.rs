@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::process::Command;
 use which::which;
 
+use crate::config::Config;
 use super::{Autofix, Check};
 
 pub fn check() -> Check {
@@ -16,15 +17,15 @@ pub fn check() -> Check {
     }
 }
 
-fn detect() -> bool {
+fn detect(_cfg: &Config) -> bool {
     which("nix").is_ok()
 }
 
-fn fix_instructions() -> String {
+fn fix_instructions(_cfg: &Config) -> String {
     "Install nix manually: https://nixos.org/download/".to_string()
 }
 
-fn autofix() -> Result<()> {
+fn autofix(_cfg: &Config) -> Result<()> {
     let status = Command::new("sh")
         .args([
             "-c",
