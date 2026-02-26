@@ -1,15 +1,16 @@
 use anyhow::Result;
 use clap::Parser;
 
+mod checks;
 mod cli;
-mod commands;
 mod config;
+mod subcommands;
 mod ui;
 
 fn main() -> Result<()> {
     let args = cli::Cli::parse();
     match args.command {
-        cli::Commands::Init => commands::init::run(),
-        cli::Commands::NewApp => commands::new_app::run(),
+        cli::Commands::Init => subcommands::init::run(),
+        cli::Commands::NewApp => subcommands::new_app::run(),
     }
 }
