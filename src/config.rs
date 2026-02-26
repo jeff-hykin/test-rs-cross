@@ -6,6 +6,22 @@ use std::{fs, path::PathBuf};
 pub struct Config {
     #[serde(default)]
     pub init_completed: bool,
+    #[serde(default)]
+    pub personality: Personality,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Personality {
+    #[serde(default)]
+    pub editor: String,
+    #[serde(default)]
+    pub indentation: String,
+    #[serde(default)]
+    pub primary_language: String,
+    #[serde(default)]
+    pub schedule: String,
+    #[serde(default)]
+    pub debug_style: String,
 }
 
 pub fn config_path() -> PathBuf {
