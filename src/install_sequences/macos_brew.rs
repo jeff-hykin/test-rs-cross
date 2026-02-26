@@ -7,6 +7,7 @@ pub fn sequence() -> InstallSequence {
         label: "macOS — Homebrew",
         preamble: vec![],
         checks: vec![
+            checks::xcode_clt::check(),
             checks::brew::check(),
             checks::curl::brew::check(),
             checks::git::brew::check(),

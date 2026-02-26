@@ -5,6 +5,7 @@ use crate::config::Config;
 
 pub mod brew;
 pub mod curl;
+pub mod xcode_clt;
 pub mod git;
 pub mod git_lfs;
 pub mod gxx;
